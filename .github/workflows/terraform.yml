@@ -5,12 +5,11 @@ on:
     branches:
       - main
   pull_request:
-  workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
-  pull-requests: write  # ✅ Required to comment on PRs
+  pull-requests: write
 
 jobs:
   terraform:
@@ -46,59 +45,122 @@ jobs:
         working-directory: terraform
 
       - name: Terraform Plan
+        id: terraform_plan
         run: terraform plan -no-color -out=plan.out
+        working-directory: terraform
+        continue-on-error: true
+
+      - name: Check Terraform Plan Status
+        if: steps.terraform_plan.outcome == 'failure'
+        run: |
+          echo "Terraform plan failed!"
+          exit 1
         working-directory: terraform
 
       - name: Show Terraform Plan
         run: terraform show -no-color plan.out > plan.txt
         working-directory: terraform
 
+      - name: Upload Terraform Plan
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v3
+        with:
+          name: terraform-plan
+          path: terraform/plan.txt
+
       - name: Comment Terraform Plan on PR
         if: github.event_name == 'pull_request'
         run: |
-          PLAN=$(cat terraform/plan.txt | sed 's/`/\\`/g')  # Escape backticks
+          PLAN_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/terraform-plan"
           gh pr comment ${{ github.event.pull_request.number }} --body "### Terraform Plan 📖
-          \`\`\`hcl
-          $PLAN
-          \`\`\`"
+          [Terraform Plan Artifact]($PLAN_URL)
+
+          :warning: **Manual Approval Required** :warning:
+
+          Please review the plan and approve by commenting '/approve' to apply."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  manual_approval:
-    name: Manual Approval
-    runs-on: ubuntu-latest
-    needs: terraform
-    steps:
-      - name: Approval
-        run: echo "Waiting for manual approval..."
-        timeout-minutes: 1440  # 24 hours
-
-  apply_and_merge:
-    name: Apply and Merge
-    runs-on: ubuntu-latest
-    needs: manual_approval
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: Await Approval
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        id: await_approval
         with:
-          terraform_version: 1.5.7
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const approvalWord = "/approve";
+            const maxRetries = 6; // 30 seconds per retry * 6 = 3 minutes
+            let retryCount = 0;
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+            while (retryCount < maxRetries) {
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+
+              for (const comment of comments.data) {
+                if (comment.body.includes(approvalWord)) {
+                  console.log("Approval found!");
+                  // Store the approval status
+                  fs.writeFileSync('approval_status.txt', 'approved');
+                  return;
+                }
+              }
+              console.log(`Approval not found, retrying in 30 seconds... (Attempt ${retryCount + 1}/${maxRetries})`);
+              await new Promise(resolve => setTimeout(resolve, 30000)); // Wait 30 seconds
+              retryCount++;
+            }
+            //if it reaches here, it timed out
+            fs.writeFileSync('approval_status.txt', 'timed_out');
+            console.log("Approval not found after 3 minutes.  Exiting.");
+
+      - name: Check Approval Status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const approvalStatus = fs.readFileSync('approval_status.txt', 'utf8');
+            if (approvalStatus === 'timed_out') {
+              console.log("Approval Timed Out");
+              core.setFailed("Approval Timed Out");
+            }
+            else{
+              console.log("Approved!");
+            }
 
       - name: Terraform Apply
+        if: github.event_name == 'pull_request' && steps.await_approval.outputs.approved == 'true'
         run: terraform apply -auto-approve
+        working-directory: terraform
+        continue-on-error: true
+
+      - name: Check Terraform Apply Status
+        if: github.event_name == 'pull_request'  && steps.await_approval.outputs.approved == 'true'
+        run: |
+          if [ $? -ne 0 ]; then
+            echo "Terraform apply failed!"
+            exit 1
+          fi
         working-directory: terraform
 
       - name: Merge PR
-        if: github.event_name == 'pull_request'
-        run: gh pr merge ${{ github.event.pull_request.number }} --merge
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: github.event_name == 'pull_request' && steps.await_approval.outputs.approved == 'true'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                merge_method: 'squash',  // Or 'merge', 'rebase',
+              });
+              console.log("PR merged successfully");
+            } catch (error) {
+              console.error("Failed to merge PR:", error);
+            }
