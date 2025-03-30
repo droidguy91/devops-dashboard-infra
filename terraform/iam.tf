@@ -5,7 +5,7 @@ Policy Attachments: Attaches AWS policies for cluster management (AmazonEKSClust
  */
 # IAM Role for EKS control plane
 resource "aws_iam_role" "eks_service_role" {
-  name = "eks-service-role"  # Role name for EKS service
+  name = "eks-service-role" # Role name for EKS service
 
   # Trust policy for the role
   assume_role_policy = jsonencode({
@@ -14,10 +14,10 @@ resource "aws_iam_role" "eks_service_role" {
       {
         Action = "sts:AssumeRole"
         Principal = {
-          Service = "eks.amazonaws.com"  # EKS service can assume this role
+          Service = "eks.amazonaws.com" # EKS service can assume this role
         }
-        Effect   = "Allow"
-        Sid      = ""
+        Effect = "Allow"
+        Sid    = ""
       },
     ]
   })
@@ -29,13 +29,13 @@ resource "aws_iam_role" "eks_service_role" {
 
 # Attach EKS Cluster policy to the service role
 resource "aws_iam_role_policy_attachment" "eks_service_role_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"  # Allows EKS to manage resources
-  role       = aws_iam_role.eks_service_role.name  # Role to attach the policy to
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy" # Allows EKS to manage resources
+  role       = aws_iam_role.eks_service_role.name               # Role to attach the policy to
 }
 
 # IAM Role for EKS worker nodes
 resource "aws_iam_role" "eks_node_role" {
-  name = "eks-node-role"  # Role name for EKS nodes
+  name = "eks-node-role" # Role name for EKS nodes
 
   # Trust policy for the role
   assume_role_policy = jsonencode({
@@ -44,10 +44,10 @@ resource "aws_iam_role" "eks_node_role" {
       {
         Action = "sts:AssumeRole"
         Principal = {
-          Service = "ec2.amazonaws.com"  # EC2 instances can assume this role
+          Service = "ec2.amazonaws.com" # EC2 instances can assume this role
         }
-        Effect   = "Allow"
-        Sid      = ""
+        Effect = "Allow"
+        Sid    = ""
       },
     ]
   })
@@ -59,12 +59,12 @@ resource "aws_iam_role" "eks_node_role" {
 
 # Attach EKS worker node policy to the node role
 resource "aws_iam_role_policy_attachment" "eks_node_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"  # Allows worker nodes to join the cluster
-  role       = aws_iam_role.eks_node_role.name  # Role to attach the policy to
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy" # Allows worker nodes to join the cluster
+  role       = aws_iam_role.eks_node_role.name                     # Role to attach the policy to
 }
 
 # Attach CloudWatch logging policy to the node role
 resource "aws_iam_role_policy_attachment" "eks_node_logging_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"  # Allows nodes to push logs to CloudWatch
-  role       = aws_iam_role.eks_node_role.name  # Role to attach the policy to
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy" # Allows nodes to push logs to CloudWatch
+  role       = aws_iam_role.eks_node_role.name                       # Role to attach the policy to
 }
