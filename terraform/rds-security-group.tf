@@ -6,14 +6,7 @@ This allows access to the PostgreSQL port (5432) from anywhere (0.0.0.0/0). You 
 resource "aws_security_group" "rds_sg" {
   name        = "rds-postgresql-sg"
   description = "Security group for RDS PostgreSQL access"
-  vpc_id      = aws_vpc.main.id # Use the existing VPC from your `vpc.tf`
-
-  ingress {
-    from_port   = 5432 # PostgreSQL default port
-    to_port     = 5432 # PostgreSQL default port
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Open to all IPs (change this for more secure access)
-  }
+  vpc_id      = local.vpc_id # Use the existing VPC from your `vpc.tf`
 
   egress {
     from_port   = 0
@@ -25,4 +18,16 @@ resource "aws_security_group" "rds_sg" {
   tags = {
     Name = "rds-postgresql-sg"
   }
+}
+
+
+resource "aws_security_group_rule" "rds-ingress-node" {
+  count                    = 1
+  description              = "Allow pods to communicate with the database"
+  type                     = "ingress"
+  from_port                = 5432
+  to_port                  = 5432
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.rds_sg[0].id
+  source_security_group_id = module.eks.node_security_group_id
 }

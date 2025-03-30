@@ -1,41 +1,59 @@
-/**
-EKS Cluster: Creates an EKS control plane (my-eks-cluster).
-The VPC configuration specifies the subnets where the EKS cluster will be deployed.
- */
 
-# Create EKS Cluster
-resource "aws_eks_cluster" "eks_cluster" {
-  name     = "my-eks-cluster"                  # Name of the EKS cluster
-  role_arn = aws_iam_role.eks_service_role.arn # IAM role for EKS control plane
+module "eks" {
+  source                                   = "terraform-aws-modules/eks/aws"
+  version                                  = "20.24.2"
+  cluster_name                             = "devops-dashboard-eks"
+  cluster_version                          = "1.32"
+  vpc_id                                   = local.vpc_id
+  subnet_ids                               = local.subnets
+  cluster_endpoint_public_access           = true
+  bootstrap_self_managed_addons            = true
+  enable_cluster_creator_admin_permissions = true
+  authentication_mode                      = "API_AND_CONFIG_MAP"
 
-  # VPC configuration for the EKS cluster
-  vpc_config {
-    subnet_ids = [aws_subnet.subnet_public.id, aws_subnet.subnet_private.id] # Subnets for the EKS cluster
+  eks_managed_node_group_defaults = {
+    # node_groups is hardcoded to read instance_type from here unless you
+    # have a custom Launch Template
+    instance_types   = ["t3.medium"]
+    root_volume_type = "gp3"
   }
 
-  depends_on = [
-    aws_iam_role_policy_attachment.eks_service_role_policy,
-    aws_iam_role_policy_attachment.eks_cni_policy,
-    aws_iam_role_policy_attachment.eks_registry_policy,
-    aws_iam_role_policy_attachment.eks_node_policy,
-    aws_iam_role_policy_attachment.eks_node_logging_policy
-  ]
-}
+  cluster_addons = {
+    coredns = {
+      most_recent = true
+    }
+    kube-proxy = {
+      most_recent = true
+    }
+    vpc-cni = {
+      most_recent = true
+    }
+    aws-ebs-csi-driver = {
+      most_recent = true
+    }
+  }
 
-resource "aws_eks_addon" "vpc_cni" {
-  cluster_name                = aws_eks_cluster.eks_cluster.name
-  addon_name                  = "vpc-cni"
-  resolve_conflicts_on_update = "OVERWRITE"
-}
+  eks_managed_node_groups = {
+    devops-dashboard = {
+      instance_types = ["t3.medium"]
+      desired_size   = 2
+      max_size       = 3
+      min_size       = 1
 
-resource "aws_eks_addon" "coredns" {
-  cluster_name                = aws_eks_cluster.eks_cluster.name
-  addon_name                  = "coredns"
-  resolve_conflicts_on_update = "OVERWRITE"
-}
+      subnets                = local.subnets[0]
+      disk_size              = 100
+      create_launch_template = true
+      name                   = "devops-dashboard"
 
-resource "aws_eks_addon" "kube_proxy" {
-  cluster_name                = aws_eks_cluster.eks_cluster.name
-  addon_name                  = "kube-proxy"
-  resolve_conflicts_on_update = "OVERWRITE"
+      metadata_http_tokens                 = "required"
+      metadata_http_put_response_hop_limit = 2
+
+      disk_encrypted = true
+
+      iam_role_additional_policies = {
+        additional = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+      }
+    }
+  }
+
 }
