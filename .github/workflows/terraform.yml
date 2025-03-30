@@ -38,22 +38,27 @@ jobs:
 
       - name: Terraform Format Check
         run: terraform fmt -check
+        working-directory: terraform
 
       - name: Terraform Validate
         run: terraform validate
-
-      - name: Terraform Plan
-        run: terraform plan -no-color > plan.txt
         working-directory: terraform
 
+      - name: Terraform Plan
+        run: terraform plan -no-color -out=plan.out
+        working-directory: terraform
+
+      - name: Show Terraform Plan
+        run: terraform show -no-color plan.out > plan.txt
+        working-directory: terraform
 
       - name: Comment Terraform Plan on PR
         if: github.event_name == 'pull_request'
         run: |
-          PLAN=$(cat plan.txt | sed 's/`/\\`/g')  # Escape backticks
-          gh pr comment ${{ github.event.pull_request.number }} --body "### Terraform Plan 📖  
-          \`\`\`hcl  
-          $PLAN  
+          PLAN=$(cat terraform/plan.txt | sed 's/`/\\`/g')  # Escape backticks
+          gh pr comment ${{ github.event.pull_request.number }} --body "### Terraform Plan 📖
+          \`\`\`hcl
+          $PLAN
           \`\`\`"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

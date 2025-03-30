@@ -1,61 +1,70 @@
-# This Terraform configuration file defines IAM roles and policy attachments for an EKS cluster and its worker nodes.
+/**
+IAM Role for EKS Cluster (eks_service_role): Allows EKS to manage resources such as EC2 instances and VPCs.
+IAM Role for EKS Worker Nodes (eks_node_role): Allows EC2 instances (worker nodes) to join the cluster and interact with AWS services like EC2 and CloudWatch.
+Policy Attachments: Attaches AWS policies for cluster management (AmazonEKSClusterPolicy), worker nodes (AmazonEKSWorkerNodePolicy), and CloudWatch logging (CloudWatchAgentServerPolicy).
+ */
+# IAM Role for EKS control plane
+resource "aws_iam_role" "eks_service_role" {
+  name = "eks-service-role" # Role name for EKS service
 
-# Define the IAM role for the EKS cluster
-resource "aws_iam_role" "eks_cluster_role" {
-  name = "eks-cluster-role"
-
-  # The assume role policy allows EKS to assume this role
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "eks.amazonaws.com"
+  # Trust policy for the role
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Principal = {
+          Service = "eks.amazonaws.com" # EKS service can assume this role
+        }
+        Effect = "Allow"
+        Sid    = ""
       },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-EOF
+    ]
+  })
+
+  tags = {
+    Name = "eks-service-role"
+  }
 }
 
-# Attach the AmazonEKSClusterPolicy to the EKS cluster role
-resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-  role       = aws_iam_role.eks_cluster_role.name
+# Attach EKS Cluster policy to the service role
+resource "aws_iam_role_policy_attachment" "eks_service_role_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy" # Allows EKS to manage resources
+  role       = aws_iam_role.eks_service_role.name               # Role to attach the policy to
 }
 
-# Define the IAM role for the EKS worker nodes
+# IAM Role for EKS worker nodes
 resource "aws_iam_role" "eks_node_role" {
-  name = "eks-node-role"
+  name = "eks-node-role" # Role name for EKS nodes
 
-  # The assume role policy allows EC2 instances to assume this role
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {
-        "Service": "ec2.amazonaws.com"
+  # Trust policy for the role
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Principal = {
+          Service = "ec2.amazonaws.com" # EC2 instances can assume this role
+        }
+        Effect = "Allow"
+        Sid    = ""
       },
-      "Action": "sts:AssumeRole"
-    }
-  ]
-}
-EOF
+    ]
+  })
+
+  tags = {
+    Name = "eks-node-role"
+  }
 }
 
-# Attach the AmazonEKSWorkerNodePolicy to the EKS worker node role
-resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = aws_iam_role.eks_node_role.name
+# Attach EKS worker node policy to the node role
+resource "aws_iam_role_policy_attachment" "eks_node_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy" # Allows worker nodes to join the cluster
+  role       = aws_iam_role.eks_node_role.name                     # Role to attach the policy to
 }
 
-# Attach the AmazonEKS_CNI_Policy to the EKS worker node role
-resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = aws_iam_role.eks_node_role.name
+# Attach CloudWatch logging policy to the node role
+resource "aws_iam_role_policy_attachment" "eks_node_logging_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy" # Allows nodes to push logs to CloudWatch
+  role       = aws_iam_role.eks_node_role.name                       # Role to attach the policy to
 }
