@@ -62,3 +62,7 @@ jobs:
           \`\`\`"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Terraform Apply (Main Branch Only)
+        if: github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve
