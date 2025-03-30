@@ -6,7 +6,7 @@ resource "aws_db_instance" "postgresql" {
   storage_type              = "gp2"                                 # General purpose SSD storage
   instance_class            = "db.t3.micro"                         # Instance type (can be changed based on your requirements)
   engine                    = "postgres"                            # Database engine
-  engine_version            = "13.3"                                # Version of PostgreSQL (adjust if needed)
+  engine_version            = "17.2"                                # Version of PostgreSQL (adjust if needed)
   db_name                   = "devops_dashboard"                    # Name of the database to create
   username                  = "admin"                               # Master username for the database
   password                  = "your_secure_password"                # Master password (use secrets management in production)

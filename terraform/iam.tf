@@ -68,3 +68,13 @@ resource "aws_iam_role_policy_attachment" "eks_node_logging_policy" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy" # Allows nodes to push logs to CloudWatch
   role       = aws_iam_role.eks_node_role.name                       # Role to attach the policy to
 }
+
+resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.eks_node_role.name
+}
+
+resource "aws_iam_role_policy_attachment" "eks_registry_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  role       = aws_iam_role.eks_node_role.name
+}
