@@ -8,7 +8,7 @@ resource "aws_db_instance" "postgresql" {
   engine                    = "postgres"                            # Database engine
   engine_version            = "17.2"                                # Version of PostgreSQL (adjust if needed)
   db_name                   = "devops_dashboard"                    # Name of the database to create
-  username                  = "admin"                               # Master username for the database
+  username                  = "postgres"                            # Master username for the database
   password                  = "your_secure_password"                # Master password (use secrets management in production)
   db_subnet_group_name      = aws_db_subnet_group.subnet_group.name # Subnet group to place the RDS in
   vpc_security_group_ids    = [aws_security_group.rds_sg.id]        # Security group to allow inbound connections
