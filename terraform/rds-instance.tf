@@ -20,7 +20,4 @@ resource "aws_db_instance" "postgresql" {
   tags = {
     Name = "devops-dashboard-db"
   }
-
-  # Optionally, enable enhanced monitoring
-  monitoring_interval = 60 # Enable monitoring with a 1-minute interval
 }
