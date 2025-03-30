@@ -4,7 +4,7 @@
 resource "aws_db_instance" "postgresql" {
   allocated_storage         = 20                                    # Size of the storage in GB
   storage_type              = "gp2"                                 # General purpose SSD storage
-  db_instance_class         = "db.t3.micro"                         # Instance type (can be changed based on your requirements)
+  instance_class            = "db.t3.micro"                         # Instance type (can be changed based on your requirements)
   engine                    = "postgres"                            # Database engine
   engine_version            = "13.3"                                # Version of PostgreSQL (adjust if needed)
   db_name                   = "devops_dashboard"                    # Name of the database to create
